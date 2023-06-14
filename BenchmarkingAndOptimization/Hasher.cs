@@ -128,4 +128,55 @@ public class Hasher
         static void Free(byte[] buffer) => ArrayPool<byte>.Shared.Return(buffer);
 
     }
+
+    public HashedPassword SAPPasswordAlgorithmStackAllocation(string clearText, byte[] salt, HashAlgorithm hasher, int rounds = 1000)
+    {
+        var passwordBytesCount = Encoding.UTF8.GetByteCount(clearText);
+        Span<byte> passwordBytes = stackalloc byte[passwordBytesCount];
+        Encoding.UTF8.GetBytes(clearText, passwordBytes);
+
+        var hashSize = GetHashSize(hasher);
+        
+        // get our input array
+        var hasherInputSize = passwordBytes.Length + Math.Max(salt.Length, hashSize);
+        Span<byte> hashInput = stackalloc byte[hasherInputSize];
+
+        // prep the input array
+        passwordBytes.CopyTo(hashInput);
+        salt.CopyTo(hashInput[passwordBytes.Length..]);
+
+        Span<byte> hashBytes = stackalloc byte[hashSize];
+        var initialSize = passwordBytes.Length + salt.Length;
+        Hash(hasher, hashInput[..initialSize], hashBytes);
+
+        var roundSize = passwordBytes.Length + hashSize;
+        for (var i = 1; i < rounds; i++)
+        {
+            passwordBytes.CopyTo(hashInput);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            Hash(hasher, hashInput[..roundSize], hashBytes);
+        }
+
+        var result = new HashedPassword() { PasswordHash = hashBytes.ToArray(), Rounds = rounds, Salt = salt };
+
+        return result;
+
+        static int Hash<T>(in T alg, in Span<byte> hasherInput, in Span<byte> hashBytes) => alg switch
+        {
+            SHA1 => SHA1.HashData(hasherInput, hashBytes),
+            SHA256 => SHA256.HashData(hasherInput, hashBytes),
+            SHA384 => SHA384.HashData(hasherInput, hashBytes),
+            SHA512 => SHA512.HashData(hasherInput, hashBytes),
+            _ => throw new NotImplementedException(),
+        };
+        
+        static int GetHashSize<T>(in T alg) => alg switch
+        {
+            SHA1 => SHA1.HashSizeInBytes,
+            SHA256 => SHA256.HashSizeInBytes,
+            SHA384 => SHA384.HashSizeInBytes,
+            SHA512 => SHA512.HashSizeInBytes,
+            _ => throw new NotImplementedException(),
+        };
+    }
 }
