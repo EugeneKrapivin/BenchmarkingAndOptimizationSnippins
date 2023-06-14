@@ -24,6 +24,9 @@ namespace tests
 
             result = hasher.SAPPasswordAlgorithmArrayPooling(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
+
+            result = hasher.SAPPasswordAlgorithmReuseHashBuffers(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
         }
     }
 }
