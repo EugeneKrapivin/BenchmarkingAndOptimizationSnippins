@@ -34,4 +34,7 @@ public class BenchTheMark
 
     [Benchmark]
     public HashedPassword NoToArray() => _hasher.SAPPasswordAlgorithmAvoidToArray(password, _salt, _algorithm, rounds);
+
+    [Benchmark]
+    public HashedPassword ArrayPooling() => _hasher.SAPPasswordAlgorithmArrayPooling(password, _salt, _algorithm, rounds);
 }

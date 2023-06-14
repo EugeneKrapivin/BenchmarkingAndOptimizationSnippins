@@ -46,4 +46,29 @@ public class Hasher
 
         return new() { PasswordHash = buffer, Rounds = rounds, Salt = salt };
     }
+
+    public HashedPassword SAPPasswordAlgorithmArrayPooling(string clearText, byte[] salt, HashAlgorithm hasher, int rounds = 1000)
+    {
+        var passwordBytes = Encoding.UTF8.GetBytes(clearText);
+
+        var initialArraySize = passwordBytes.Length + salt.Length;
+        var initialArray = ArrayPool<byte>.Shared.Rent(initialArraySize);
+        passwordBytes.CopyTo(initialArray, 0);
+        salt.CopyTo(initialArray, passwordBytes.Length);
+        
+        var buffer = hasher.ComputeHash(initialArray,0, initialArraySize);
+        ArrayPool<byte>.Shared.Return(initialArray);
+
+        var roundBufferSize = passwordBytes.Length + buffer.Length;
+        var roundBuffer = ArrayPool<byte>.Shared.Rent(roundBufferSize);
+        for (var i = 1; i < rounds; i++)
+        {
+            passwordBytes.CopyTo(roundBuffer, 0);
+            buffer.CopyTo(roundBuffer, passwordBytes.Length);
+            buffer = hasher.ComputeHash(roundBuffer, 0, roundBufferSize);
+        }
+        var result = new HashedPassword() { PasswordHash = buffer, Rounds = rounds, Salt = salt };
+        
+        return result;
+    }
 }
