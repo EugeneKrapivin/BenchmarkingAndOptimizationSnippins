@@ -1,11 +1,10 @@
-﻿using BenchmarkDotNet.Attributes.Jobs;
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
-
-using BenchmarkingAndOptimization;
+using BenchmarkDotNet.Attributes;
 
 using System.Security.Cryptography;
-using BenchmarkDotNet.Jobs;
+
+using BenchmarkingAndOptimization;
 
 BenchmarkRunner.Run<BenchTheMark>();
 
