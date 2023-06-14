@@ -18,6 +18,9 @@ namespace tests
 
             var result = hasher.SAPPasswordAlgorithmNaive(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
+
+            result = hasher.SAPPasswordAlgorithmAvoidToArray(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
         }
     }
 }

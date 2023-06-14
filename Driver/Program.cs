@@ -31,4 +31,7 @@ public class BenchTheMark
 
     [Benchmark(Baseline = true)]
     public HashedPassword Naive() => _hasher.SAPPasswordAlgorithmNaive(password, _salt, _algorithm, rounds);
+
+    [Benchmark]
+    public HashedPassword NoToArray() => _hasher.SAPPasswordAlgorithmAvoidToArray(password, _salt, _algorithm, rounds);
 }
