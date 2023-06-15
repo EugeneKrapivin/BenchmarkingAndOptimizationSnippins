@@ -14,21 +14,19 @@ namespace tests
         [Test]
         public void Test_Correctness()
         {
-            var hasher = new Hasher();
-
-            var result = hasher.SAPPasswordAlgorithmNaive(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            var result = Hasher.SAPPasswordAlgorithmNaive(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
 
-            result = hasher.SAPPasswordAlgorithmAvoidToArray(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            result = Hasher.SAPPasswordAlgorithmAvoidToArray(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
 
-            result = hasher.SAPPasswordAlgorithmArrayPooling(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            result = Hasher.SAPPasswordAlgorithmArrayPooling(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
 
-            result = hasher.SAPPasswordAlgorithmReuseHashBuffers(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            result = Hasher.SAPPasswordAlgorithmReuseHashBuffers(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
 
-            result = hasher.SAPPasswordAlgorithmStackAllocation(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
+            result = Hasher.SAPPasswordAlgorithmStackAllocation(password, Convert.FromHexString(salt), SHA1.Create(), rounds);
             Assert.That(Convert.ToHexString(result.PasswordHash).ToLower(), Is.EqualTo("ca9c3dedfc17a8bd76346b1780e0f284db57572a"));
         }
     }

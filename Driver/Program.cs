@@ -5,41 +5,40 @@ using BenchmarkDotNet.Attributes;
 using System.Security.Cryptography;
 
 using BenchmarkingAndOptimization;
+using BenchmarkDotNet.Diagnostics.Windows.Configs;
 
 BenchmarkRunner.Run<BenchTheMark>();
 
 [MemoryDiagnoser]
-[SimpleJob(runtimeMoniker: RuntimeMoniker.Net70, baseline: true)]
+[InliningDiagnoser(true, true)]
 [SimpleJob(runtimeMoniker: RuntimeMoniker.Net80)]
 public class BenchTheMark
 {
-    const string password = "Klartext-Kennwort";
-    const int rounds = 5000;
-    const string salt = "0f8e113ec6398b9315ff4af3ac5cd625";
-    private Hasher _hasher = null!;
+    const string _password = "Klartext-Kennwort";
+    const int _rounds = 5000;
+    const string _salt = "0f8e113ec6398b9315ff4af3ac5cd625";
     private HashAlgorithm _algorithm;
-    private byte[] _salt;
+    private byte[] _saltBytes;
 
     [GlobalSetup]
     public void Setup()
     {
-        _hasher = new Hasher();
         _algorithm = SHA1.Create();
-        _salt = Convert.FromHexString(salt);
+        _saltBytes = Convert.FromHexString(_salt);
     }
 
     [Benchmark(Baseline = true)]
-    public HashedPassword Naive() => _hasher.SAPPasswordAlgorithmNaive(password, _salt, _algorithm, rounds);
+    public HashedPassword Naive() => Hasher.SAPPasswordAlgorithmNaive(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword NoToArray() => _hasher.SAPPasswordAlgorithmAvoidToArray(password, _salt, _algorithm, rounds);
+    public HashedPassword NoToArray() => Hasher.SAPPasswordAlgorithmAvoidToArray(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword ArrayPooling() => _hasher.SAPPasswordAlgorithmArrayPooling(password, _salt, _algorithm, rounds);
+    public HashedPassword ArrayPooling() => Hasher.SAPPasswordAlgorithmArrayPooling(_password, _saltBytes, _algorithm, _rounds);
     
     [Benchmark]
-    public HashedPassword ArrayPoolingReuseBuffers() => _hasher.SAPPasswordAlgorithmReuseHashBuffers(password, _salt, _algorithm, rounds);
+    public HashedPassword ArrayPoolingReuseBuffers() => Hasher.SAPPasswordAlgorithmReuseHashBuffers(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword Stackallocs() => _hasher.SAPPasswordAlgorithmStackAllocation(password, _salt, _algorithm, rounds);
+    public HashedPassword Stackallocs() => Hasher.SAPPasswordAlgorithmStackAllocation(_password, _saltBytes, _algorithm, _rounds);
 }
