@@ -40,9 +40,9 @@ public static class Hasher
         var buffer = hasher.ComputeHash(initialArray);
 
         var roundBuffer = new byte[passwordBytes.Length + buffer.Length];
+        passwordBytes.CopyTo(roundBuffer, 0);
         for (var i = 1; i < rounds; i++)
         {
-            passwordBytes.CopyTo(roundBuffer, 0);
             buffer.CopyTo(roundBuffer, passwordBytes.Length);
             buffer = hasher.ComputeHash(roundBuffer);
         }
@@ -63,9 +63,9 @@ public static class Hasher
         
         var roundBufferSize = passwordBytes.Length + buffer.Length;
         var roundBuffer = ArrayPool<byte>.Shared.Rent(roundBufferSize);
+        passwordBytes.CopyTo(roundBuffer, 0);
         for (var i = 1; i < rounds; i++)
         {
-            passwordBytes.CopyTo(roundBuffer, 0);
             buffer.CopyTo(roundBuffer, passwordBytes.Length);
             buffer = hasher.ComputeHash(roundBuffer, 0, roundBufferSize);
         }
@@ -102,9 +102,9 @@ public static class Hasher
         hasher.TryComputeHash(hashInput[..initialSize], hashBytes, out var _);
 
         var roundSize = passwordBytes.Length + hashSize;
+        passwordBytes.CopyTo(hashInput);
         for (var i = 1; i < rounds; i++)
         {
-            passwordBytes.CopyTo(hashInput);
             hashBytes[..hashSize].CopyTo(hashInput[passwordBytes.Length..]);
             hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
         }
@@ -141,16 +141,68 @@ public static class Hasher
         hasher.TryComputeHash(hashInput[..initialSize], hashBytes, out var _);
 
         var roundSize = passwordBytes.Length + hashSize;
+        passwordBytes.CopyTo(hashInput);
         for (var i = 1; i < rounds; i++)
         {
-            passwordBytes.CopyTo(hashInput);
             hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
             hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
         }
 
-        var result = new HashedPassword() { PasswordHash = hashBytes.ToArray(), Rounds = rounds, Salt = salt };
+        return new HashedPassword() { PasswordHash = hashBytes.ToArray(), Rounds = rounds, Salt = salt };
+    }
 
-        return result;
+    public static HashedPassword SAPPasswordAlgorithmStackAllocationUnroll(string clearText, byte[] salt, HashAlgorithm hasher, int rounds = 1000)
+    {
+        var passwordBytesCount = Encoding.UTF8.GetByteCount(clearText);
+        Span<byte> passwordBytes = stackalloc byte[passwordBytesCount];
+        Encoding.UTF8.GetBytes(clearText, passwordBytes);
+
+        var hashSize = GetHashSize(hasher);
+
+        // get our input array
+        var hasherInputSize = passwordBytes.Length + Math.Max(salt.Length, hashSize);
+        Span<byte> hashInput = stackalloc byte[hasherInputSize];
+
+        // prep the input array
+        passwordBytes.CopyTo(hashInput);
+        salt.CopyTo(hashInput[passwordBytes.Length..]);
+
+        Span<byte> hashBytes = stackalloc byte[hashSize];
+        var initialSize = passwordBytes.Length + salt.Length;
+
+        hasher.TryComputeHash(hashInput[..initialSize], hashBytes, out var _);
+
+        var roundSize = passwordBytes.Length + hashSize;
+        passwordBytes.CopyTo(hashInput);
+        
+        var left = rounds - 1;
+        const int unroll = 6;
+        var loops = left / unroll;
+        var additional = left - loops * unroll;
+
+        for (var i = 0; i < loops; i++)
+        {
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+        }
+
+        for (var i = 0; i < additional; i++)
+        {
+            hashBytes.CopyTo(hashInput[passwordBytes.Length..]);
+            hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
+        }
+
+        return new HashedPassword() { PasswordHash = hashBytes.ToArray(), Rounds = rounds, Salt = salt };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

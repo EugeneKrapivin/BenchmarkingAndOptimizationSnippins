@@ -28,17 +28,26 @@ public class BenchTheMark
     }
 
     [Benchmark(Baseline = true)]
-    public HashedPassword Naive() => Hasher.SAPPasswordAlgorithmNaive(_password, _saltBytes, _algorithm, _rounds);
+    public HashedPassword Naive() 
+        => Hasher.SAPPasswordAlgorithmNaive(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword NoToArray() => Hasher.SAPPasswordAlgorithmAvoidToArray(_password, _saltBytes, _algorithm, _rounds);
+    public HashedPassword NoToArray() 
+        => Hasher.SAPPasswordAlgorithmAvoidToArray(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword ArrayPooling() => Hasher.SAPPasswordAlgorithmArrayPooling(_password, _saltBytes, _algorithm, _rounds);
-    
-    [Benchmark]
-    public HashedPassword ArrayPoolingReuseBuffers() => Hasher.SAPPasswordAlgorithmReuseHashBuffers(_password, _saltBytes, _algorithm, _rounds);
+    public HashedPassword ArrayPooling() 
+        => Hasher.SAPPasswordAlgorithmArrayPooling(_password, _saltBytes, _algorithm, _rounds);
 
     [Benchmark]
-    public HashedPassword Stackallocs() => Hasher.SAPPasswordAlgorithmStackAllocation(_password, _saltBytes, _algorithm, _rounds);
+    public HashedPassword ArrayPoolingReuseBuffers() 
+        => Hasher.SAPPasswordAlgorithmReuseHashBuffers(_password, _saltBytes, _algorithm, _rounds);
+
+    [Benchmark]
+    public HashedPassword Stackallocs() 
+        => Hasher.SAPPasswordAlgorithmStackAllocation(_password, _saltBytes, _algorithm, _rounds);
+
+    [Benchmark]
+    public HashedPassword Unroll() 
+        => Hasher.SAPPasswordAlgorithmStackAllocationUnroll(_password, _saltBytes, _algorithm, _rounds);
 }
