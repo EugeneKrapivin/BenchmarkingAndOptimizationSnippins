@@ -62,7 +62,7 @@ public static class Hasher
         var buffer = hasher.ComputeHash(initialArray,0, initialArraySize);
         
         var roundBufferSize = passwordBytes.Length + buffer.Length;
-        var roundBuffer = ArrayPool<byte>.Shared.Rent(roundBufferSize);
+        var roundBuffer = Malloc(roundBufferSize);
         passwordBytes.CopyTo(roundBuffer, 0);
         for (var i = 1; i < rounds; i++)
         {
@@ -75,27 +75,34 @@ public static class Hasher
         Free(initialArray);
 
         return result;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static byte[] Malloc(int size) => ArrayPool<byte>.Shared.Rent(size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void Free(in byte[] buffer) => ArrayPool<byte>.Shared.Return(buffer);
     }
 
     public static HashedPassword SAPPasswordAlgorithmReuseHashBuffers(string clearText, byte[] salt, HashAlgorithm hasher, int rounds = 1000)
     {
         var passwordByteLen = Encoding.UTF8.GetByteCount(clearText);
-        var passwordByteArray = Malloc(passwordByteLen);
-        var passwordBytes = passwordByteArray.AsSpan()[..passwordByteLen];
+        using var passwordByteArray = RentedMemoryHandle.Malloc(passwordByteLen);
+        var passwordBytes = passwordByteArray.AsSpan();
         
         Encoding.UTF8.GetBytes(clearText, passwordBytes);
         
         var hashSize = GetHashSize(hasher);
+        
         // get our input array
         var hasherInputSize = passwordBytes.Length + Math.Max(salt.Length, hashSize);
-        var hashInputByteArray = Malloc(hasherInputSize);
+        using var hashInputByteArray = RentedMemoryHandle.Malloc(hasherInputSize);
         var hashInput = hashInputByteArray.AsSpan();
         
         // prep the input array
         passwordBytes.CopyTo(hashInput);
         salt.CopyTo(hashInput[passwordBytes.Length..]);
 
-        var hashBytesArray = Malloc(hashSize);
+        using var hashBytesArray = RentedMemoryHandle.Malloc(hashSize);
         var hashBytes = hashBytesArray.AsSpan();
         
         var initialSize = passwordBytes.Length + salt.Length;
@@ -109,14 +116,40 @@ public static class Hasher
             hasher.TryComputeHash(hashInput[..roundSize], hashBytes, out var _);
         }
         
-        var result = new HashedPassword() { PasswordHash = hashBytes[..hashSize].ToArray(), Rounds = rounds, Salt = salt };
+        return new() { PasswordHash = hashBytes[..hashSize].ToArray(), Rounds = rounds, Salt = salt };
         
-        // notice something?
-        Free(hashInputByteArray);
-        Free(hashBytesArray);
-        Free(passwordByteArray);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static int GetHashSize<T>(in T alg)
+            => alg switch
+            {
+                SHA1 => SHA1.HashSizeInBytes,
+                SHA256 => SHA256.HashSizeInBytes,
+                SHA384 => SHA384.HashSizeInBytes,
+                SHA512 => SHA512.HashSizeInBytes,
+                _ => throw new NotImplementedException(),
+            };
+    }
 
-        return result;
+    internal struct RentedMemoryHandle : IDisposable
+    {
+        private readonly byte[] _buffer;
+        private int _size;
+
+        public Span<byte> AsSpan() => _buffer.AsSpan()[.._size];
+
+        private RentedMemoryHandle(int size)
+        {
+            _buffer = ArrayPool<byte>.Shared.Rent(size);
+            _size = size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static RentedMemoryHandle Malloc(int size) => new(size);
+
+        public void Dispose()
+        {
+            ArrayPool<byte>.Shared.Return(_buffer);
+        }
     }
 
     public static HashedPassword SAPPasswordAlgorithmStackAllocation(string clearText, byte[] salt, HashAlgorithm hasher, int rounds = 1000)
@@ -206,7 +239,7 @@ public static class Hasher
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int GetHashSize<T>(in T alg)
+    static int GetHashSize<T>(in T alg) where T: HashAlgorithm
         => alg switch
         {
             SHA1 => SHA1.HashSizeInBytes,
@@ -215,10 +248,4 @@ public static class Hasher
             SHA512 => SHA512.HashSizeInBytes,
             _ => throw new NotImplementedException(),
         };
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static byte[] Malloc(int size) => ArrayPool<byte>.Shared.Rent(size);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void Free(in byte[] buffer) => ArrayPool<byte>.Shared.Return(buffer);
 }
