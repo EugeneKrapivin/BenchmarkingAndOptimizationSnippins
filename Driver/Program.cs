@@ -6,14 +6,28 @@ using System.Security.Cryptography;
 
 using BenchmarkingAndOptimization;
 using BenchmarkDotNet.Diagnostics.Windows.Configs;
+using BenchmarkDotNet.Columns;
+using BenchmarkDotNet.Configs;
 
 BenchmarkRunner.Run<BenchTheMark>();
 
 [MemoryDiagnoser]
 [InliningDiagnoser(true, true)]
+[Config(typeof(Config))]
 [SimpleJob(runtimeMoniker: RuntimeMoniker.Net80)]
 public class BenchTheMark
 {
+    private class Config : ManualConfig
+    {
+        public Config()
+        {
+            AddColumn(
+                StatisticColumn.P50,
+                StatisticColumn.P90,
+                StatisticColumn.P95);
+        }
+    }
+
     const string _password = "Klartext-Kennwort";
     const int _rounds = 5000;
     const string _salt = "0f8e113ec6398b9315ff4af3ac5cd625";
